@@ -1,0 +1,261 @@
+package com.landlord.dashboard;
+
+import java.util.ArrayList;
+import java.util.Scanner;
+
+// ─────────────────────────────────────────
+//  Property Model
+// ─────────────────────────────────────────
+class Property {
+    String address;
+    double rent;
+    boolean occupied;
+
+    Property(String address, double rent, boolean occupied) {
+        this.address  = address;
+        this.rent     = rent;
+        this.occupied = occupied;
+    }
+}
+
+// ─────────────────────────────────────────
+//  Main Dashboard
+// ─────────────────────────────────────────
+public class LandlordDashboard {
+
+    static ArrayList<Property> properties = new ArrayList<>();
+    static Scanner sc = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        int choice = 0;
+
+        System.out.println("+======================================+");
+        System.out.println("|      LANDLORD MANAGEMENT SYSTEM      |");
+        System.out.println("+======================================+");
+
+        do {
+            printMenu();
+            choice = readInt("Enter your choice: ");
+
+            switch (choice) {
+                case 1: addProperty();    break;
+                case 2: viewProperties(); break;
+                case 3: editProperty();   break;
+                case 4: deleteProperty(); break;
+                case 5: showDashboard();  break;
+                case 6:
+                    System.out.println("\n[EXIT] Goodbye!");
+                    break;
+                default:
+                    System.out.println("[ERROR] Invalid choice! Please enter 1-6.");
+            }
+
+        } while (choice != 6);
+
+        sc.close();
+    }
+
+    // ── MENU ────────────────────────────────
+    static void printMenu() {
+        System.out.println("\n+------------------------------+");
+        System.out.println("|          MAIN MENU           |");
+        System.out.println("+------------------------------+");
+        System.out.println("|  1. Add Property             |");
+        System.out.println("|  2. View Properties          |");
+        System.out.println("|  3. Edit Property            |");
+        System.out.println("|  4. Delete Property          |");
+        System.out.println("|  5. Dashboard Summary        |");
+        System.out.println("|  6. Exit                     |");
+        System.out.println("+------------------------------+");
+    }
+
+    // ── ADD ─────────────────────────────────
+    static void addProperty() {
+        System.out.println("\n[ ADD NEW PROPERTY ]");
+
+        System.out.print("Enter address : ");
+        String address = sc.nextLine().trim();
+
+        if (address.isEmpty()) {
+            System.out.println("[ERROR] Address cannot be empty!");
+            return;
+        }
+
+        double rent = readDouble("Enter monthly rent (Rs.): ");
+        if (rent <= 0) {
+            System.out.println("[ERROR] Rent must be greater than 0!");
+            return;
+        }
+
+        boolean occupied = readBoolean("Is property occupied? (yes/no): ");
+
+        properties.add(new Property(address, rent, occupied));
+        System.out.println("[OK] Property added successfully!");
+    }
+
+    // ── VIEW ─────────────────────────────────
+    static void viewProperties() {
+        if (properties.isEmpty()) {
+            System.out.println("\n[INFO] No properties found.");
+            return;
+        }
+
+        System.out.println("\n+-----+------------------------------------+------------+----------+");
+        System.out.printf( "| %-3s | %-34s | %-10s | %-8s |%n", "#", "Address", "Rent/Month", "Status");
+        System.out.println("+-----+------------------------------------+------------+----------+");
+
+        for (int i = 0; i < properties.size(); i++) {
+            Property p = properties.get(i);
+            String status = p.occupied ? "Occupied" : "Vacant";
+            System.out.printf("| %-3d | %-34s | Rs.%-7.2f | %-8s |%n",
+                (i + 1), truncate(p.address, 34), p.rent, status);
+        }
+
+        System.out.println("+-----+------------------------------------+------------+----------+");
+    }
+
+    // ── EDIT ─────────────────────────────────
+    static void editProperty() {
+        if (properties.isEmpty()) {
+            System.out.println("\n[INFO] No properties to edit.");
+            return;
+        }
+
+        viewProperties();
+        int idx = readInt("Enter property number to edit: ") - 1;
+
+        if (idx < 0 || idx >= properties.size()) {
+            System.out.println("[ERROR] Invalid property number!");
+            return;
+        }
+
+        Property p = properties.get(idx);
+        System.out.println("\n[ EDITING: " + p.address + " ]");
+        System.out.println("(Press Enter to keep current value)");
+
+        System.out.print("New address [" + p.address + "]: ");
+        String newAddr = sc.nextLine().trim();
+        if (!newAddr.isEmpty()) p.address = newAddr;
+
+        System.out.print("New rent [Rs." + p.rent + "]: ");
+        String rentStr = sc.nextLine().trim();
+        if (!rentStr.isEmpty()) {
+            try {
+                double newRent = Double.parseDouble(rentStr);
+                if (newRent > 0) p.rent = newRent;
+                else System.out.println("[ERROR] Invalid rent, keeping old value.");
+            } catch (NumberFormatException e) {
+                System.out.println("[ERROR] Invalid input, keeping old rent.");
+            }
+        }
+
+        boolean newOcc = readBoolean("Is occupied? (yes/no) [current: " + (p.occupied ? "yes" : "no") + "]: ");
+        p.occupied = newOcc;
+
+        System.out.println("[OK] Property updated successfully!");
+    }
+
+    // ── DELETE ───────────────────────────────
+    static void deleteProperty() {
+        if (properties.isEmpty()) {
+            System.out.println("\n[INFO] No properties to delete.");
+            return;
+        }
+
+        viewProperties();
+        int idx = readInt("Enter property number to delete: ") - 1;
+
+        if (idx < 0 || idx >= properties.size()) {
+            System.out.println("[ERROR] Invalid property number!");
+            return;
+        }
+
+        System.out.print("Are you sure you want to delete \"" + properties.get(idx).address + "\"? (yes/no): ");
+        String confirm = sc.nextLine().trim().toLowerCase();
+        if (confirm.equals("yes") || confirm.equals("y")) {
+            properties.remove(idx);
+            System.out.println("[OK] Property deleted successfully!");
+        } else {
+            System.out.println("[CANCELLED] Deletion cancelled.");
+        }
+    }
+
+    // ── DASHBOARD ────────────────────────────
+    static void showDashboard() {
+        int total              = properties.size();
+        int occupied           = 0;
+        double actualIncome    = 0;
+        double potentialIncome = 0;
+
+        for (Property p : properties) {
+            potentialIncome += p.rent;
+            if (p.occupied) {
+                occupied++;
+                actualIncome += p.rent;
+            }
+        }
+
+        int    vacant   = total - occupied;
+        double lostRent = potentialIncome - actualIncome;
+        double occRate  = total > 0 ? (occupied * 100.0 / total) : 0;
+
+        System.out.println("\n+======================================+");
+        System.out.println("|          DASHBOARD SUMMARY           |");
+        System.out.println("+======================================+");
+        System.out.printf( "|  Total Properties  : %-16d|%n", total);
+        System.out.printf( "|  Occupied          : %-16d|%n", occupied);
+        System.out.printf( "|  Vacant            : %-16d|%n", vacant);
+        System.out.printf( "|  Occupancy Rate    : %-14.1f%% |%n", occRate);
+        System.out.println("+--------------------------------------+");
+        System.out.printf( "|  Actual Income     : Rs.%-13.2f|%n", actualIncome);
+        System.out.printf( "|  Potential Income  : Rs.%-13.2f|%n", potentialIncome);
+        System.out.printf( "|  Vacancy Loss      : Rs.%-13.2f|%n", lostRent);
+        System.out.println("+======================================+");
+
+        // ASCII occupancy bar
+        System.out.print("\n  Occupancy [");
+        int filled = (int)(occRate / 5);
+        for (int i = 0; i < 20; i++)
+            System.out.print(i < filled ? "#" : "-");
+        System.out.printf("] %.1f%%%n", occRate);
+    }
+
+    // ── HELPERS ──────────────────────────────
+    static int readInt(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String line = sc.nextLine().trim();
+            try {
+                return Integer.parseInt(line);
+            } catch (NumberFormatException e) {
+                System.out.println("[ERROR] Please enter a valid number.");
+            }
+        }
+    }
+
+    static double readDouble(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String line = sc.nextLine().trim();
+            try {
+                return Double.parseDouble(line);
+            } catch (NumberFormatException e) {
+                System.out.println("[ERROR] Please enter a valid amount.");
+            }
+        }
+    }
+
+    static boolean readBoolean(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String line = sc.nextLine().trim().toLowerCase();
+            if (line.equals("yes") || line.equals("y")) return true;
+            if (line.equals("no")  || line.equals("n")) return false;
+            System.out.println("[ERROR] Please type yes or no.");
+        }
+    }
+
+    static String truncate(String s, int max) {
+        return s.length() > max ? s.substring(0, max - 3) + "..." : s;
+    }
+}
